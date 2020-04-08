@@ -18,6 +18,7 @@ def get_data():
 
 class ANN():
     def __init__(self,X,Y,units_count_hidden_layer,batch, activation = "sigmoid"):
+        
         self.batch = batch
         if batch>0:
            self.X = np.split(X, batch)
@@ -42,14 +43,14 @@ class ANN():
         self.activation = activation
         self.act_units = [] #will be the same size as w eventually (the input units "have already been activated")
 
-    def fit(self,alpha):
-       self.mini_batch(alpha)
+    def fit(self,alpha,epochs):
+        for i in range(epochs):
+            self.mini_batch(alpha)
 
     def mini_batch(self,alpha):
         for i in range(self.batch):
             self.fwd_prop(i)
             self.back_prop(i,alpha)
-            #self.gradient[1:] = (1/len(self.X[i]))*self.gradient[1:] #+ reguralization
 
     def fwd_prop(self,batch):
         for l in range(1,self.L):
@@ -81,6 +82,7 @@ class ANN():
             return np.concatenate( (bias,act), axis = 1)
         else:
             return act
+            
     def act_deriv(self,func):
         return func * (1.0 - func)
 
