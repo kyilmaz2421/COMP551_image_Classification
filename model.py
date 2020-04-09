@@ -32,8 +32,6 @@ class ANN():
         self.L = len(units_count_hidden_layer)+2 #input and output are the +2
         self.units_count_hidden_layer = units_count_hidden_layer
 
-        #np.ones((len(X),1))
-        #self.bias_term = [1]*(self.L-1)
         self.deriv = lambda a: a * (1.0 - a)
         #Note: columns (feautures) represent neurons
         self.w = [np.random.rand(len(X[0]),units_count_hidden_layer[0]+1)] # old + 1 * new (the +1 is for the bias term)
@@ -41,7 +39,7 @@ class ANN():
             self.w.append(np.random.rand(units_count_hidden_layer[i]+1,units_count_hidden_layer[i+1]+1) )
         self.w.append(np.random.rand(units_count_hidden_layer[-1]+1,len(Y[0])))
         # size of w is L -1
-        #len(numpy) gives number of rows
+        # len(numpy) gives number of rows
 
     def fit(self, alpha, epochs, activation = "sigmoid"):
         for i in range(epochs):
@@ -101,29 +99,25 @@ class ANN():
             dw = np.dot( act_units[-(l+1)].T, dz )/len(self.X[batch])
             self.w[-l] -= alpha * dw # + reg
 
-    def predict(self,x_test,y_test,activation="sigmoid"):
+    def predict(self,x_test):
         prediction = [x_test]
         for l in range(1,self.L):
             new_layer = self.activate_layer(l,x_test,prediction)
             prediction.append(new_layer)
-        pred = prediction[-1]
-        if activation =="ReLU":
-            print("do this")
-        elif activation =="softmax": #fix this
-            return np.max(pred,axis=1)
-        else: #Sigmoid
-            best = np.max(pred,axis=1)
-            vfunc = np.vectorize(lambda x : 1 if (x == best) else 0)
-            return vfunc(pred)
+        return (np.argmax(prediction[-1],axis=1)+1)
 
     def eval_acc(self,pred,y):
-        return (pred == y)
+        return np.sum(pred == (np.argmax(y,axis=1)+1) ) /len(y)
 
 
 if __name__ == "__main__":
     (x_train, y_train), (x_test, y_test) = get_data()
-    NN = ANN(x_train,y_train,[3],2)
+    NN = ANN(x_train,y_train,[10],2)
     #NN2 = ANN(x_train,y_train,[50,40],5)
 
     NN.fit(0.1,2)
-    print(NN.predict(x_test, y_test))
+    ye = NN.predict(x_test)
+    for ss in y_test:    
+        print(np.argmax(ss)+1)
+    print(ye)
+    print(NN.eval_acc(ye,y_test))
