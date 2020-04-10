@@ -238,7 +238,7 @@ if __name__ == "__main__":
     parameters ={
         'alpha': [0.1],
         'regularization': [('L2',1)],
-        'activation': ["tanh"],
+        'activation': ["relu"],
         'layers':[[1]],
         'batch': [1],
         'epochs': [10]
