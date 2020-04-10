@@ -175,16 +175,17 @@ class ANN():
             act_units.append(new_layer)
 
     def activate_layer(self,layer,batch,act_units, activation):
-        if activation =="relu":
-            act = np.maximum(0,self.get_z(layer,batch,act_units))
+
+        if activation =="softmax" or (layer == self.L-1) : #fix this
+            act = np.exp(self.get_z(layer,batch,act_units))
+            act /= np.sum(act,axis=1,keepdims=True) # a value for every test set
+        elif activation: #Sigmoid
+            act = 1/(1+np.exp(-self.get_z(layer,batch,act_units) ))
         elif activation=="tanh":
             z = self.get_z(layer,batch,act_units)
             act = (np.exp(z)-np.exp(-z))/(np.exp(z)+np.exp(-z))
-        elif activation =="softmax": #fix this
-            act = np.exp(self.get_z(layer,batch,act_units))
-            act /= np.sum(act,axis=1,keepdims=True) # a value for every test set
-        else: #Sigmoid
-            act = 1/(1+np.exp(-self.get_z(layer,batch,act_units) ))
+        else: 
+            act = np.maximum(0,self.get_z(layer,batch,act_units))
         return act
 
     def get_z(self,layer,x_batch,act_units): # layer is the layer we are creating 1<layer<L (not zero)
