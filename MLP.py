@@ -10,8 +10,6 @@ import numpy as np
 from time import time
 
 
-
-
 def get_data():
     train_bias = np.ones((50000,1))
     test_bias = np.ones((10000,1))
@@ -235,11 +233,11 @@ class ANN():
 if __name__ == "__main__":
     (x_train, y_train), (x_test, y_test) = get_data()
 
-    parameters ={
+    parameters = {
         'alpha': [0.1],
         'regularization': [('L2',1)],
         'activation': ["relu"],
-        'layers':[[1]],
+        'layers':[[3000,1000,10],[100]],
         'batch': [1],
         'epochs': [10]
     }
