@@ -155,10 +155,10 @@ class ANN():
 
         #Initializing our weights
         #Note: columns (feautures) represent neurons
-        self.w = [np.random.rand(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
+        self.w = [np.random.randn(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
         for i in range(len(hidden_layers)-1): # size of w is L -1
-            self.w.append(np.random.rand(hidden_layers[i]+1,hidden_layers[i+1]+1) *self.scale_weights(hidden_layers[i]) )
-        self.w.append(np.random.rand(hidden_layers[-1]+1,len(Y[0])) *self.scale_weights(hidden_layers[-1]) )
+            self.w.append(np.random.randn(hidden_layers[i]+1,hidden_layers[i+1]+1) *self.scale_weights(hidden_layers[i]) )
+        self.w.append(np.random.randn(hidden_layers[-1]+1,len(Y[0])) *self.scale_weights(hidden_layers[-1]) )
         
 
     def fit(self, alpha, epochs,regularization):
