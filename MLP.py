@@ -173,8 +173,10 @@ class ANN():
             act_units.append(new_layer)
 
     def activate_layer(self,layer,batch,act_units, activation):
-
-        if activation =="softmax" or (layer == self.L-1) : #fix this
+        if type(activation) == tuple and activation[0] == "Lrelu":
+            z = self.get_z(layer,batch,act_units)
+            act = np.maximum(0,z) + (activation[1] *np.minimum(0,z))
+        elif activation =="softmax" or (layer == self.L-1) : #fix this
             act = np.exp(self.get_z(layer,batch,act_units))
             act /= np.sum(act,axis=1,keepdims=True) # a value for every test set
         elif activation: #Sigmoid
@@ -182,7 +184,7 @@ class ANN():
         elif activation=="tanh":
             z = self.get_z(layer,batch,act_units)
             act = (np.exp(z)-np.exp(-z))/(np.exp(z)+np.exp(-z))
-        else: 
+        else: # Relu
             act = np.maximum(0,self.get_z(layer,batch,act_units))
         return act
 
@@ -209,7 +211,10 @@ class ANN():
         return dw
     
     def deriv(self,activation,act):
-        if activation == "relu":
+        if type(activation) == tuple and activation[0] == "Lrelu":
+            vfunc = np.vectorize(lambda x : 1 if (x >= 0) else activation[1])
+            return vfunc(act)
+        elif activation == "relu":
             vfunc = np.vectorize(lambda x : 1 if (x >= 0) else 0)
             return vfunc(act)
         elif activation == "tanh": 
@@ -236,8 +241,8 @@ if __name__ == "__main__":
     parameters = {
         'alpha': [0.1],
         'regularization': [('L2',1)],
-        'activation': ["relu"],
-        'layers':[[3000,1000,10],[100]],
+        'activation': [ ("Lrelu",0.1)],
+        'layers':[[1]],
         'batch': [1],
         'epochs': [10]
     }
