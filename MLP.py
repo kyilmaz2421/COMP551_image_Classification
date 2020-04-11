@@ -140,7 +140,7 @@ class classifier():
 class ANN():
     def __init__(self,X,Y,hidden_layers,batch,activation):
         if (len(X)/batch).is_integer() and batch>0: self.batch = batch
-        else: self.batch = 5
+        else: self.batch = 500
 
         self.data = np.concatenate((X,Y),axis=1)
         self.L = len(hidden_layers)+2 #input and output are the +2
