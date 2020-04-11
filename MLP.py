@@ -163,7 +163,6 @@ class ANN():
 
     def fit(self, alpha, epochs,regularization):
         for i in range(epochs):
-            print("EPOCH "+str(i))
             np.random.shuffle(self.data)
             self.mini_batch(alpha,regularization)
 
@@ -171,7 +170,6 @@ class ANN():
         X = np.split(self.data[:,0:-10], self.batch)
         Y = np.split(self.data[:,-10:], self.batch)
         for i in range(self.batch):
-            print("hi")
             act_units = [X[i]] # will be the same size as w eventually (the input units "have already been activated")
             self.fwd_prop(X[i], act_units)
             self.back_prop(X[i],Y[i],act_units,alpha,regularization)
@@ -184,7 +182,6 @@ class ANN():
 
     def activate_layer(self,layer,batch,act_units):
         if (layer == self.L-1) or (type(self.activation) != tuple and self.activation =="softmax"):
-            print("SOFTY")
             z = self.get_z(layer,batch,act_units)
             #-np.max(z, axis=1, keepdims=True)
             act = np.exp(z)
@@ -255,7 +252,7 @@ if __name__ == "__main__":
         'regularization': [('L2',1)],
         'activation': [ ("Lrelu",0.1)],
         'layers':[[1000,1000]],
-        'batch': [10],
+        'batch': [100],
         'epochs': [10]
     }
 
