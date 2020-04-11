@@ -1,4 +1,3 @@
-
 from sklearn.metrics import accuracy_score,recall_score,precision_score,f1_score,confusion_matrix
 import seaborn as sn
 import matplotlib.pyplot as plt
@@ -11,8 +10,8 @@ from time import time
 
 
 def get_data():
-    train_bias = np.ones((50000,1))
-    test_bias = np.ones((10000,1))
+    train_bias = np.zeros((50000,1))
+    test_bias = np.zeros((10000,1))
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     y_train = keras.utils.to_categorical(y_train, 10)
     y_test = keras.utils.to_categorical(y_test, 10)
@@ -37,7 +36,7 @@ class classifier():
         for key in keys:
             fit_count *= len(self.params[key])
         print("Starting Grid Search....")
-        print("Fitting "+str(self.cv)+" folds for each "+str(fit_count) +" parameters --> totalling in "+str(fit_count*self.cv)+" fits")
+        print("Fitting "+str(self.cv)+" folds for each of the "+str(fit_count) +" parameters --> totalling in "+str(fit_count*self.cv)+" fits")
         clfs = {} #{score:model}
         self.recurrence(X,Y,self.cv,{},self.params,keys,0,key_len,clfs,fit_count)
         print("\ndone in %0.3fmins" % ((time() - t0)/60)+"\n")
@@ -48,8 +47,8 @@ class classifier():
         print("Best Scores: ")
         print("For paramters: "+str(self.best_param)+"\nScore: "+ str(best_score)+"\n")
         #Re-fitting process for future use 
-        self.clf = ANN(X,Y,self.best_param["layers"],self.best_param["batch"])
-        self.clf.fit(self.best_param["alpha"], self.best_param["epochs"], self.best_param["activation"],self.best_param["regularization"])
+        self.clf = ANN(X,Y,self.best_param["layers"],self.best_param["batch"],self.best_param["activation"])
+        self.clf.fit(self.best_param["alpha"], self.best_param["epochs"],self.best_param["regularization"])
 
 
     def recurrence(self,X,Y,k,param,grid,keys,depth,max_depth,clfs,task_count):  
@@ -70,10 +69,11 @@ class classifier():
         cv_scores,test_scores = [],[]
         x_set,y_set = np.array_split(X,k),np.array_split(Y,k)
         for i in range(len(x_set)): #i is test
+            print("----Completing cv fit "+str(i+1))
             left,right = int(jump*(i+1)),int(jump*i)
             x,y = np.concatenate( (X[:right],X[left:]), axis=0), np.concatenate( (Y[:right],Y[left:]), axis=0)
-            clf = ANN(x,y,params["layers"],params["batch"])
-            clf.fit(params["alpha"], params["epochs"], params["activation"],params["regularization"])
+            clf = ANN(x,y,params["layers"],params["batch"],params["activation"])
+            clf.fit(params["alpha"], params["epochs"],params["regularization"])
             cv_scores.append(clf.eval_acc(clf.predict(x_set[i]),y_set[i]))
             test_scores.append(clf.eval_acc(clf.predict(x),y))
         return np.average(cv_scores),np.average(test_scores)
@@ -120,7 +120,6 @@ class classifier():
         train_scores_std = np.std(cv_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
         test_scores_std = np.std(test_scores, axis=1)
-        print(test_scores_std)
         plt.grid()
 
         plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
@@ -139,51 +138,66 @@ class classifier():
         
 
 class ANN():
-    def __init__(self,X,Y,hidden_layers,batch):
+    def __init__(self,X,Y,hidden_layers,batch,activation):
         if (len(X)/batch).is_integer() and batch>0: self.batch = batch
         else: self.batch = 5
-        self.X = np.split(X, batch)
-        self.Y = np.split(Y, batch)
 
+        self.data = np.concatenate((X,Y),axis=1)
         self.L = len(hidden_layers)+2 #input and output are the +2
         self.hidden_layers = hidden_layers
         
+        self.activation = activation
+        if (type(self.activation) == tuple and self.activation[0] == "Lrelu") or activation == "relu":
+            self.scale_weights = lambda l : np.sqrt(2/l)
+        else:
+            self.scale_weights = lambda l : np.sqrt(1/l)
+
+
         #Initializing our weights
         #Note: columns (feautures) represent neurons
-        self.w = [np.random.rand(len(X[0]),hidden_layers[0]+1)] # old + 1 * new (the +1 is for the bias term)
+        self.w = [np.random.rand(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
         for i in range(len(hidden_layers)-1): # size of w is L -1
-            self.w.append(np.random.rand(hidden_layers[i]+1,hidden_layers[i+1]+1) )
-        self.w.append(np.random.rand(hidden_layers[-1]+1,len(Y[0])))
+            self.w.append(np.random.rand(hidden_layers[i]+1,hidden_layers[i+1]+1) *self.scale_weights(hidden_layers[i]) )
+        self.w.append(np.random.rand(hidden_layers[-1]+1,len(Y[0])) *self.scale_weights(hidden_layers[-1]) )
         
 
-    def fit(self, alpha, epochs, activation,regularization):
+    def fit(self, alpha, epochs,regularization):
         for i in range(epochs):
-            self.mini_batch(alpha,activation,regularization)
+            print("EPOCH "+str(i))
+            np.random.shuffle(self.data)
+            self.mini_batch(alpha,regularization)
 
-    def mini_batch(self,alpha,activation,regularization):
+    def mini_batch(self,alpha,regularization):
+        X = np.split(self.data[:,0:-10], self.batch)
+        Y = np.split(self.data[:,-10:], self.batch)
         for i in range(self.batch):
-            act_units = [self.X[i]] # will be the same size as w eventually (the input units "have already been activated")
-            self.fwd_prop(self.X[i], act_units, activation)
-            self.back_prop(i,act_units,alpha,activation,regularization)
+            print("hi")
+            act_units = [X[i]] # will be the same size as w eventually (the input units "have already been activated")
+            self.fwd_prop(X[i], act_units)
+            self.back_prop(X[i],Y[i],act_units,alpha,regularization)
     
-    def fwd_prop(self,batch,act_units, activation):
+    def fwd_prop(self,batch,act_units):
         #print("----Feed-forward starting")
         for l in range(1,self.L):
-            new_layer = self.activate_layer(l,batch,act_units,activation)
+            new_layer = self.activate_layer(l,batch,act_units)
             act_units.append(new_layer)
 
-    def activate_layer(self,layer,batch,act_units, activation):
-        if type(activation) == tuple and activation[0] == "Lrelu":
+    def activate_layer(self,layer,batch,act_units):
+        if (layer == self.L-1) or (type(self.activation) != tuple and self.activation =="softmax"):
+            print("SOFTY")
             z = self.get_z(layer,batch,act_units)
-            act = np.maximum(0,z) + (activation[1] *np.minimum(0,z))
-        elif activation =="softmax" or (layer == self.L-1) : #fix this
-            act = np.exp(self.get_z(layer,batch,act_units))
-            act /= np.sum(act,axis=1,keepdims=True) # a value for every test set
-        elif activation: #Sigmoid
-            act = 1/(1+np.exp(-self.get_z(layer,batch,act_units) ))
-        elif activation=="tanh":
+            #-np.max(z, axis=1, keepdims=True)
+            act = np.exp(z)
+            act = np.divide(act,np.sum(act,axis=1,keepdims=True)) # a value for every test set
+        elif type(self.activation) == tuple and self.activation[0] == "Lrelu":
             z = self.get_z(layer,batch,act_units)
-            act = (np.exp(z)-np.exp(-z))/(np.exp(z)+np.exp(-z))
+            act = np.maximum(0,z) + (self.activation[1] *np.minimum(0,z))
+        elif self.activation == "sigmoid": #Sigmoid
+            z = self.get_z(layer,batch,act_units)
+            act = np.divide(1,(1+np.exp(-z )))
+        elif self.activation=="tanh":
+            z = self.get_z(layer,batch,act_units)
+            act = np.divide(2,1+np.exp(-2*z))-1
         else: # Relu
             act = np.maximum(0,self.get_z(layer,batch,act_units))
         return act
@@ -195,15 +209,15 @@ class ANN():
             return np.dot(act_units[layer-1],self.w[layer-1])
 
 
-    def back_prop(self,batch,act_units,alpha,activation,regularization):
+    def back_prop(self,X,Y,act_units,alpha,regularization):
         # total of L-1 updates to gradient
-        dz = act_units[-1]-self.Y[batch] #self.act_units[-1] is our "y_hat"
-        dw = np.dot( act_units[-2].T, dz )/len(self.X[batch])
+        dz = act_units[-1]-Y #self.act_units[-1] is our "y_hat"
+        dw = np.dot( act_units[-2].T, dz )/len(X)
         self.w[-1] -= alpha * dw # + reg
 
         for l in range(2,self.L):
-            dz = np.dot( dz , self.w[-l+1].T) * self.deriv(activation,act_units[-l])
-            dw = np.dot( act_units[-(l+1)].T, dz )/len(self.X[batch])
+            dz = np.dot( dz , self.w[-l+1].T) * self.deriv(self.activation,act_units[-l])
+            dw = np.dot( act_units[-(l+1)].T, dz )/len(X)
             self.w[-l] -= alpha * self.reguralize_dw(dw,regularization,l)
     
     def reguralize_dw(self,dw,regurlization,layer): #tuple (reg_type,[params])
@@ -218,16 +232,14 @@ class ANN():
             vfunc = np.vectorize(lambda x : 1 if (x >= 0) else 0)
             return vfunc(act)
         elif activation == "tanh": 
-            return 1.0-np.square((np.exp(act)-np.exp(-act))/(np.exp(act)+np.exp(-act)))
+            return 1.0-np.square(np.divide(2,1+np.exp(-2*act))-1)
         else:
             return act * (1.0 - act) 
 
     def predict(self,x_test):
         prediction = [x_test]
         for l in range(1,self.L):
-            if l<self.L-1: 
-                new_layer = self.activate_layer(l,x_test,prediction,None)
-            else: new_layer = self.activate_layer(l,x_test,prediction,"softmax")
+            new_layer = self.activate_layer(l,x_test,prediction)
             prediction.append(new_layer)
         return (np.argmax(prediction[-1],axis=1)+1)
 
@@ -242,12 +254,12 @@ if __name__ == "__main__":
         'alpha': [0.1],
         'regularization': [('L2',1)],
         'activation': [ ("Lrelu",0.1)],
-        'layers':[[1]],
-        'batch': [1],
+        'layers':[[1000,1000]],
+        'batch': [10],
         'epochs': [10]
     }
 
     clf = classifier(5,parameters)
     clf.search(x_train, y_train)
-    clf.eval_on_test(x_test, y_test)
+    #clf.eval_on_test(x_test, y_test)
     clf.learning_curve(x_train, y_train,[])
