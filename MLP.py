@@ -21,14 +21,12 @@ def get_data():
     return (np.concatenate( (train_bias,x_train), axis = 1)/255, y_train), (np.concatenate( (test_bias,x_test), axis = 1)/255, y_test)
 
 class classifier():
-    def __init__(self,cv,params): #Convolution or mlp (as a string)
-        #self.model = model
-        self.cv = cv
+    def __init__(self,params): #Convolution or mlp (as a string)
         self.params = params
         self.clf = None
         self.best_param = None 
 
-    def search(self,X,Y):
+    def search(self,X,Y,validation_size,tolerance):
         t0 = time()
         keys = list(self.params.keys())
         key_len = len(keys)
@@ -36,9 +34,9 @@ class classifier():
         for key in keys:
             fit_count *= len(self.params[key])
         print("Starting Grid Search....")
-        print("Fitting "+str(self.cv)+" folds for each of the "+str(fit_count) +" parameters --> totalling in "+str(fit_count*self.cv)+" fits")
+        print("Fitting "+str(fit_count)+" models")
         clfs = {} #{score:model}
-        self.recurrence(X,Y,self.cv,{},self.params,keys,0,key_len,clfs,fit_count)
+        self.recurrence(X,Y,validation_size,{},self.params,keys,0,key_len,clfs,fit_count,tolerance)
         print("\ndone in %0.3fmins" % ((time() - t0)/60)+"\n")
         
         best_score = max(clfs.keys())
@@ -51,37 +49,81 @@ class classifier():
         self.clf.fit(self.best_param["alpha"], self.best_param["epochs"],self.best_param["regularization"])
 
 
-    def recurrence(self,X,Y,k,param,grid,keys,depth,max_depth,clfs,task_count):  
+    def recurrence(self,X,Y,validation_size,param,grid,keys,depth,max_depth,clfs,task_count,tolerance):  
         if depth == max_depth:
-            score = self.k_cross_validation(X,Y,k,param)
+            if tolerance!=-1: 
+                score = self.iterative_search(X,Y,param,validation_size,tolerance)
+                param["epochs"] = score[3]
+            else: 
+                score = self.train_model(X,Y,validation_size,param,False)
+            
             if clfs.get(score): clfs[score[0]] = clfs[score[0]] = param
             else: clfs[score[0]] = param
             print("Score " +str(score[0])+ " for Param: "+str(param)+ " - (task: "+str(len(clfs.keys()))+ "/"+str(task_count) +")")
         else:
             for val in grid[keys[depth]]:
                 param[keys[depth]] = val
-                self.recurrence(X,Y,k,param,grid,keys,depth+1,max_depth,clfs,task_count)
+                self.recurrence(X,Y,validation_size,param,grid,keys,depth+1,max_depth,clfs,task_count,tolerance)
 
-    def k_cross_validation(self,X,Y,k,params):
-        if not (len(X)/k).is_integer(): 
-            k = 5
-        jump = (len(X)/k)
-        cv_scores,test_scores = [],[]
-        x_set,y_set = np.array_split(X,k),np.array_split(Y,k)
-        for i in range(len(x_set)): #i is test
-            print("----Completing cv fit "+str(i+1))
-            left,right = int(jump*(i+1)),int(jump*i)
-            x,y = np.concatenate( (X[:right],X[left:]), axis=0), np.concatenate( (Y[:right],Y[left:]), axis=0)
-            clf = ANN(x,y,params["layers"],params["batch"],params["activation"])
-            clf.fit(params["alpha"], params["epochs"],params["regularization"])
-            cv_scores.append(clf.eval_acc(clf.predict(x_set[i]),y_set[i]))
-            test_scores.append(clf.eval_acc(clf.predict(x),y))
-        return np.average(cv_scores),np.average(test_scores)
+    def train_model(self,X,Y,validation_size,params,evaluate,model=None):
+        x_train,y_train,x_validate,y_validate = self.split_data(X,Y,validation_size)
+        
+        if model == None:
+            clf = ANN(x_train,y_train,params["layers"],params["batch"],params["activation"])
+        else: clf = model
+            
+        clf.fit(params["alpha"], params["epochs"],params["regularization"])
+        if evaluate: self.evaluate_model(x_validate,y_validate,clf)
+        return clf.eval_acc(clf.predict(x_validate),y_validate),clf.eval_acc(clf.predict(x_train),y_train)
+
+    def split_data(self,X,Y,validation_size):
+        data = np.concatenate((X,Y),axis=1)
+        np.random.shuffle(data)
+        test_split = int(validation_size*len(data))
+        train,validation = data[test_split:], data[:test_split]#row split
+        return train[:,0:-10],train[:,-10:],validation[:,0:-10],validation[:,-10:]
+
+    def iterative_search(self,X,Y,params,validation_size,tolerance):
+        x_train,y_train,x_validate,y_validate = self.split_data(X,Y,validation_size)
+        clf = ANN(x_train,y_train,params["layers"],params["batch"],params["activation"])
+        max_score,epochs,original_tolerance = 0,0,tolerance
+        cv_score,train_score =[0],[0]
+        improvement = True
+        while improvement or tolerance>0: #while improving
+            print("EPOCH: "+str(epochs)+" --> cv score "+str(cv_score[-1])+", train score "+ str(train_score[-1]))
+            
+            if not improvement: 
+              tolerance-=1
+              if tolerance ==1 and params["alpha"]<0.01:# protect against local minima
+                clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"]*10, params["regularization"])
+              else: 
+                clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"])
+            else: 
+              tolerance = original_tolerance
+              clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"])
+
+            
+            cv_score.append(clf.eval_acc(clf.predict(x_validate),y_validate))
+            train_score.append(clf.eval_acc(clf.predict(x_train),y_train))
+            
+            if (cv_score[-1]-max_score)>0.00001: 
+              max_score = cv_score[-1]
+              improvement = True
+            else: improvement = False
+            #shuffle data
+            temp_data = np.concatenate((x_train,y_train),axis=1)
+            np.random.shuffle(temp_data)
+            x_train,y_train = temp_data[:,0:-10],temp_data[:,-10:]
+            epochs +=1
+       # self.evaluate_model(x_validate,y_validate,clf)
+        self.plot_learning_curve(cv_score,train_score,np.arange(len(cv_score)),"Epochs")
+        return max_score,cv_score,train_score,epochs-original_tolerance
+            
     
-    def eval_on_test(self,X_test,Y_test):
-        print("Evaluation on test set:\n")
+    def evaluate_model(self,X_test,Y_test,clf):
+        print("Evaluation of model:\n")
         Y_test = (np.argmax(Y_test,axis=1)+1)
-        pred = self.clf.predict(X_test)
+        pred = clf.predict(X_test)
             
         print('Accuracy Score : ' + str(accuracy_score(Y_test,pred)))
         print('Precision Score : ' + str(precision_score(Y_test,pred, average='micro')))
@@ -100,40 +142,41 @@ class classifier():
         sn.heatmap(df_cm)
         plt.show()
 
-    def learning_curve(self,X,Y,train_sizes):
-        if train_sizes == []: train_sizes = [0.33,0.66,1.0]
-        cv_scores,test_scores = [],[]
+    def plot_learning_curve(self,cv_scores,test_scores,train_sizes,xlabel = "Training examples"):
         plt.figure()
         plt.title("title")
-        plt.xlabel("Training examples")
+        plt.xlabel(xlabel)
         plt.ylabel("Score")
-        L = len(X)
-        for t in train_sizes:
-            split = int(t*L)
-            split_x,split_y = X[:split],Y[:split]
-            (cv,test) = self.k_cross_validation(split_x,split_y,self.cv,self.best_param)
-            cv_scores.append(cv)
-            test_scores.append(test)
-
         cv_scores,test_scores = np.array([cv_scores]).T,np.array([test_scores]).T
         train_scores_mean = np.mean(cv_scores, axis=1)
         train_scores_std = np.std(cv_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
         test_scores_std = np.std(test_scores, axis=1)
         plt.grid()
-
-        plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
-                            train_scores_mean + train_scores_std, alpha=0.1,
-                            color="r")
-        plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
-                            test_scores_mean + test_scores_std, alpha=0.1, color="g")
-        plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
-                    label="Training score")
-        plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
-                    label="Cross-validation score")
+        
+        print(cv_scores.shape)
+        print(test_scores.shape)
+        print(train_sizes.shape)
+        plt.fill_between(train_sizes, train_scores_mean - train_scores_std,train_scores_mean + train_scores_std, alpha=0.1,color="r")
+        plt.fill_between(train_sizes, test_scores_mean - test_scores_std,test_scores_mean + test_scores_std, alpha=0.1, color="g")
+        plt.plot(train_sizes, train_scores_mean, 'o-', color="r",label="Training score")
+        plt.plot(train_sizes, test_scores_mean, 'o-', color="g",label="Cross-validation score")
 
         plt.legend(loc="best")
         plt.show()
+
+    def learning_curve(self,X,Y,validation_size,train_sizes):
+        if train_sizes == []: train_sizes = [0.33,0.66,1.0]
+        cv_scores,test_scores = [],[]
+        L = len(X)
+        for t in train_sizes:
+            split = int(t*L)
+            split_x,split_y = X[:split],Y[:split]
+            (cv,test) = self.train_model(split_x,split_y,validation_size,self.best_param,False)
+            cv_scores.append(cv)
+            test_scores.append(test)
+        cv_scores,test_scores = np.array([cv_scores]).T,np.array([test_scores]).T
+        self.plot_learning_curve(cv_scores,test_scores,train_sizes)
 
         
 
@@ -152,7 +195,6 @@ class ANN():
         else:
             self.scale_weights = lambda l : np.sqrt(1/l)
 
-
         #Initializing our weights
         #Note: columns (feautures) represent neurons
         self.w = [np.random.randn(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
@@ -164,12 +206,11 @@ class ANN():
     def fit(self, alpha, epochs,regularization):
         for i in range(epochs):
             np.random.shuffle(self.data)
-            self.mini_batch(alpha,regularization)
+            self.mini_batch(np.split(self.data[:,0:-10], self.batch),np.split(self.data[:,-10:], self.batch),alpha,regularization)
 
-    def mini_batch(self,alpha,regularization):
-        X = np.split(self.data[:,0:-10], self.batch)
-        Y = np.split(self.data[:,-10:], self.batch)
+    def mini_batch(self,X,Y,alpha,regularization):
         for i in range(self.batch):
+            #print("Batch "+str(i))
             act_units = [X[i]] # will be the same size as w eventually (the input units "have already been activated")
             self.fwd_prop(X[i], act_units)
             self.back_prop(X[i],Y[i],act_units,alpha,regularization)
@@ -243,20 +284,18 @@ class ANN():
     def eval_acc(self,pred,y):
         return np.sum(pred == (np.argmax(y,axis=1)+1) ) /len(y)
 
-
 if __name__ == "__main__":
     (x_train, y_train), (x_test, y_test) = get_data()
 
     parameters = {
-        'alpha': [0.1],
-        'regularization': [('L2',1)],
-        'activation': [ ("Lrelu",0.1)],
-        'layers':[[1000,1000]],
-        'batch': [100],
-        'epochs': [10]
+        'alpha': [0.00001],
+        'regularization': [('L2',0.1)],
+        'activation': ["relu"],
+        'layers':[[1]],
+        'batch': [1],
     }
 
-    clf = classifier(5,parameters)
-    clf.search(x_train, y_train)
-    #clf.eval_on_test(x_test, y_test)
-    clf.learning_curve(x_train, y_train,[])
+    clf = classifier(parameters)
+    clf.search(x_train, y_train,0.1,1)
+    #clf.evaluate_model(x_test, y_test) # on the tr
+    #clf.learning_curve(x_train, y_train,0.1,[0.2,0.4,0.6,0.8,1.0])
