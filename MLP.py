@@ -115,7 +115,7 @@ class classifier():
             np.random.shuffle(temp_data)
             x_train,y_train = temp_data[:,0:-10],temp_data[:,-10:]
             epochs +=1
-       # self.evaluate_model(x_validate,y_validate,clf)
+        self.evaluate_model(x_validate,y_validate,clf)
         self.plot_learning_curve(cv_score,train_score,np.arange(len(cv_score)),"Epochs")
         return max_score,cv_score,train_score,epochs-original_tolerance
             
