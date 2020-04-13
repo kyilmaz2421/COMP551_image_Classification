@@ -57,7 +57,7 @@ class classifier():
             else: 
                 score = self.train_model(X,Y,validation_size,param,False)
             
-            if clfs.get(score): clfs[score[0]] = clfs[score[0]] = param
+            if clfs.get(score[0]): clfs[score[0]] = clfs[score[0]] = param
             else: clfs[score[0]] = param
             print("Score " +str(score[0])+ " for Param: "+str(param)+ " - (task: "+str(len(clfs.keys()))+ "/"+str(task_count) +")")
         else:
@@ -94,7 +94,7 @@ class classifier():
             
             if not improvement: 
               tolerance-=1
-              if tolerance ==1 and params["alpha"]<0.01:# protect against local minima
+              if tolerance <3 and params["alpha"]<0.01:# protect against local minima
                 clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"]*10, params["regularization"])
               else: 
                 clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"])
@@ -154,9 +154,6 @@ class classifier():
         test_scores_std = np.std(test_scores, axis=1)
         plt.grid()
         
-        print(cv_scores.shape)
-        print(test_scores.shape)
-        print(train_sizes.shape)
         plt.fill_between(train_sizes, train_scores_mean - train_scores_std,train_scores_mean + train_scores_std, alpha=0.1,color="r")
         plt.fill_between(train_sizes, test_scores_mean - test_scores_std,test_scores_mean + test_scores_std, alpha=0.1, color="g")
         plt.plot(train_sizes, train_scores_mean, 'o-', color="r",label="Training score")
@@ -296,6 +293,6 @@ if __name__ == "__main__":
     }
 
     clf = classifier(parameters)
-    clf.search(x_train, y_train,0.1,1)
+    clf.search(x_train, y_train,0.1,6)
     #clf.evaluate_model(x_test, y_test) # on the tr
     #clf.learning_curve(x_train, y_train,0.1,[0.2,0.4,0.6,0.8,1.0])
