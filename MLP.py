@@ -10,15 +10,13 @@ from time import time
 
 
 def get_data():
-    train_bias = np.zeros((50000,1))
-    test_bias = np.zeros((10000,1))
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     y_train = keras.utils.to_categorical(y_train, 10)
     y_test = keras.utils.to_categorical(y_test, 10)
     x_train = x_train.reshape(50000,3072)
     x_test = x_test.reshape(10000,3072) 
     print("Data retreived, normalized, and formatted succesfuly!\n")
-    return (np.concatenate( (train_bias,x_train), axis = 1)/255, y_train), (np.concatenate( (test_bias,x_test), axis = 1)/255, y_test)
+    return (x_train/255, y_train), (x_test/255, y_test)
 
 class classifier():
     def __init__(self,params): #Convolution or mlp (as a string)
@@ -194,10 +192,14 @@ class ANN():
 
         #Initializing our weights
         #Note: columns (feautures) represent neurons
+        
         self.w = [np.random.randn(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
+        self.w[-1][:,:1]=0
         for i in range(len(hidden_layers)-1): # size of w is L -1
             self.w.append(np.random.randn(hidden_layers[i]+1,hidden_layers[i+1]+1) *self.scale_weights(hidden_layers[i]) )
+            self.w[-1][:,:1]=0
         self.w.append(np.random.randn(hidden_layers[-1]+1,len(Y[0])) *self.scale_weights(hidden_layers[-1]) )
+        self.w[-1][:,:1]=0
         
 
     def fit(self, alpha, epochs,regularization):
@@ -233,7 +235,7 @@ class ANN():
         elif self.activation=="tanh":
             z = self.get_z(layer,batch,act_units)
             act = np.divide(2,1+np.exp(-2*z))-1
-        else: # Relu
+        else: # ReLu
             act = np.maximum(0,self.get_z(layer,batch,act_units))
         return act
 
@@ -252,11 +254,11 @@ class ANN():
 
         for l in range(2,self.L):
             dz = np.dot( dz , self.w[-l+1].T) * self.deriv(self.activation,act_units[-l])
-            dw = np.dot( act_units[-(l+1)].T, dz )/len(X)
-            self.w[-l] -= alpha * self.reguralize_dw(dw,regularization,l)
+            dw = np.dot( act_units[-(l+1)].T, dz )
+            self.w[-l] -= alpha * (self.reguralize_dw(dw,regularization[1],l)/len(X))
     
-    def reguralize_dw(self,dw,regurlization,layer): #tuple (reg_type,[params])
-        dw[1:] += regurlization[1]*self.w[-layer][1:]
+    def reguralize_dw(self,dw,lam,layer): #tuple (reg_type,[params])
+        dw[1:] += lam*self.w[-layer][1:]
         return dw
     
     def deriv(self,activation,act):
