@@ -44,7 +44,7 @@ class classifier():
         print("For paramters: "+str(self.best_param)+"\nScore: "+ str(best_score)+"\n")
         #Re-fitting process for future use 
         self.clf = ANN(X,Y,self.best_param["layers"],self.best_param["batch"],self.best_param["activation"])
-        self.clf.fit(self.best_param["alpha"], self.best_param["epochs"],self.best_param["regularization"])
+        self.clf.fit(self.best_param["alpha"], self.best_param["epochs"],self.best_param["regularization"],self.best_param['momentum'])
 
 
     def recurrence(self,X,Y,validation_size,param,grid,keys,depth,max_depth,clfs,task_count,tolerance):  
@@ -70,7 +70,7 @@ class classifier():
             clf = ANN(x_train,y_train,params["layers"],params["batch"],params["activation"])
         else: clf = model
             
-        clf.fit(params["alpha"], params["epochs"],params["regularization"])
+        clf.fit(params["alpha"], params["epochs"],params["regularization"],params['momentum'])
         if evaluate: self.evaluate_model(x_validate,y_validate,clf)
         return clf.eval_acc(clf.predict(x_validate),y_validate),clf.eval_acc(clf.predict(x_train),y_train)
 
@@ -93,12 +93,12 @@ class classifier():
             if not improvement: 
               tolerance-=1
               if tolerance <3 and params["alpha"]<0.01:# protect against local minima
-                clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"]*10, params["regularization"])
+                clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"]*10, params["regularization"],params['momentum'])
               else: 
-                clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"])
+                clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"],params['momentum'])
             else: 
               tolerance = original_tolerance
-              clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"])
+              clf.mini_batch(np.split(x_train, params["batch"]),np.split(y_train, params["batch"]), params["alpha"], params["regularization"],params['momentum'])
 
             
             cv_score.append(clf.eval_acc(clf.predict(x_validate),y_validate))
@@ -194,25 +194,28 @@ class ANN():
         #Note: columns (feautures) represent neurons
         
         self.w = [np.random.randn(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
-        self.w[-1][:,:1]=0
+        self.velocity = [np.zeros((len(X[0]),hidden_layers[0]+1))]
+        self.w[-1][:,:1]= 0
         for i in range(len(hidden_layers)-1): # size of w is L -1
             self.w.append(np.random.randn(hidden_layers[i]+1,hidden_layers[i+1]+1) *self.scale_weights(hidden_layers[i]) )
             self.w[-1][:,:1]=0
+            self.velocity.append(np.zeros((hidden_layers[i]+1,hidden_layers[i+1]+1)))
         self.w.append(np.random.randn(hidden_layers[-1]+1,len(Y[0])) *self.scale_weights(hidden_layers[-1]) )
+        self.velocity.append(np.zeros((hidden_layers[-1]+1,len(Y[0]))))
         self.w[-1][:,:1]=0
         
 
-    def fit(self, alpha, epochs,regularization):
+    def fit(self, alpha, epochs,regularization,momentum):
         for i in range(epochs):
             np.random.shuffle(self.data)
-            self.mini_batch(np.split(self.data[:,0:-10], self.batch),np.split(self.data[:,-10:], self.batch),alpha,regularization)
+            self.mini_batch(np.split(self.data[:,0:-10], self.batch),np.split(self.data[:,-10:], self.batch),alpha,regularization,momentum)
 
-    def mini_batch(self,X,Y,alpha,regularization):
+    def mini_batch(self,X,Y,alpha,regularization,momentum):
         for i in range(self.batch):
             #print("Batch "+str(i))
             act_units = [X[i]] # will be the same size as w eventually (the input units "have already been activated")
             self.fwd_prop(X[i], act_units)
-            self.back_prop(X[i],Y[i],act_units,alpha,regularization)
+            self.back_prop(X[i],Y[i],act_units,alpha,regularization,momentum)
     
     def fwd_prop(self,batch,act_units):
         #print("----Feed-forward starting")
@@ -224,7 +227,7 @@ class ANN():
         if (layer == self.L-1) or (type(self.activation) != tuple and self.activation =="softmax"):
             z = self.get_z(layer,batch,act_units)
             #-np.max(z, axis=1, keepdims=True)
-            act = np.exp(z)
+            act = np.exp(z-np.max(z))
             act = np.divide(act,np.sum(act,axis=1,keepdims=True)) # a value for every test set
         elif type(self.activation) == tuple and self.activation[0] == "Lrelu":
             z = self.get_z(layer,batch,act_units)
@@ -246,19 +249,20 @@ class ANN():
             return np.dot(act_units[layer-1],self.w[layer-1])
 
 
-    def back_prop(self,X,Y,act_units,alpha,regularization):
+    def back_prop(self,X,Y,act_units,alpha,regularization,momentum):
         # total of L-1 updates to gradient
-        dz = act_units[-1]-Y #self.act_units[-1] is our "y_hat"
+        dz = act_units[-1]-Y #act_units[-1] is our "y_hat"
         dw = np.dot( act_units[-2].T, dz )/len(X)
-        self.w[-1] -= alpha * dw # + reg
-
+        self.velocity[-1] = momentum*self.velocity[-1] + (1.0-momentum)*dw
+        self.w[-1] -= (alpha/len(X)) * (self.reguralize_dw(self.velocity[-1],momentum,1)) # + reg
         for l in range(2,self.L):
             dz = np.dot( dz , self.w[-l+1].T) * self.deriv(self.activation,act_units[-l])
             dw = np.dot( act_units[-(l+1)].T, dz )
-            self.w[-l] -= alpha * (self.reguralize_dw(dw,regularization[1],l)/len(X))
+            self.velocity[-l] = momentum*self.velocity[-l] + (1.0-momentum)*dw
+            self.w[-l] -= (alpha/len(X)) * (self.reguralize_dw(self.velocity[-l],momentum,l))
     
     def reguralize_dw(self,dw,lam,layer): #tuple (reg_type,[params])
-        dw[1:] += lam*self.w[-layer][1:]
+        dw[:,1:] += lam*self.w[-layer][:,1:]
         return dw
     
     def deriv(self,activation,act):
@@ -288,10 +292,11 @@ if __name__ == "__main__":
 
     parameters = {
         'alpha': [0.00001],
-        'regularization': [('L2',0.1)],
+        'regularization': [('L2',0.001)],
         'activation': ["relu"],
-        'layers':[[1]],
-        'batch': [1],
+        'layers':[[1000,1000]],
+        'momentum': [0.9],
+        'batch': [500],
     }
 
     clf = classifier(parameters)
