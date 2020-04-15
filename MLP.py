@@ -195,14 +195,16 @@ class ANN():
         
         self.w = [np.random.randn(len(X[0]),hidden_layers[0]+1)*self.scale_weights(len(X[0]))] # old + 1 * new (the +1 is for the bias term)
         self.velocity = [np.zeros((len(X[0]),hidden_layers[0]+1))]
-        self.w[-1][:,:1]= 0
+        self.w[-1][:,:1]= np.random.uniform(low=-1e-5, high=1e-5, size=(len(self.w[-1][:,:1]),1)) *self.scale_weights(len(X[0]))
+        
         for i in range(len(hidden_layers)-1): # size of w is L -1
             self.w.append(np.random.randn(hidden_layers[i]+1,hidden_layers[i+1]+1) *self.scale_weights(hidden_layers[i]) )
-            self.w[-1][:,:1]=0
+            self.w[-1][:,:1]= np.random.uniform(low=-1e-5, high=1e-5, size=(len(self.w[-1][:,:1]),1)) *self.scale_weights(hidden_layers[i])
             self.velocity.append(np.zeros((hidden_layers[i]+1,hidden_layers[i+1]+1)))
+        
         self.w.append(np.random.randn(hidden_layers[-1]+1,len(Y[0])) *self.scale_weights(hidden_layers[-1]) )
         self.velocity.append(np.zeros((hidden_layers[-1]+1,len(Y[0]))))
-        self.w[-1][:,:1]=0
+        self.w[-1][:,:1]=np.random.uniform(low=-1e-5, high=1e-5, size=(len(self.w[-1][:,:1]),1)) *self.scale_weights(len(Y[0]))
         
 
     def fit(self, alpha, epochs,regularization,momentum):
