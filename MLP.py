@@ -2,14 +2,14 @@ from sklearn.metrics import accuracy_score,recall_score,precision_score,f1_score
 import seaborn as sn
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import keras
-from keras.datasets import cifar10
 import pandas as pd
 import numpy as np
 from time import time
 
-#generic function to get dummy data to test module
-def get_data():
+#generic function to get cifar10 data to test Network
+def get_cifar10_data():
+    import keras
+    from keras.datasets import cifar10
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     y_train = keras.utils.to_categorical(y_train, 10)
     y_test = keras.utils.to_categorical(y_test, 10)
@@ -292,7 +292,7 @@ class ANN():
 if __name__ == "__main__":
     
     #example use case
-    (x_train, y_train), (x_test, y_test) = get_data()
+    (x_train, y_train), (x_test, y_test) = get_cifar10_data()
 
     parameters = {
         'alpha': [0.00001],
