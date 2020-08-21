@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from time import time
 
-
+#generic function to get dummy data to test module
 def get_data():
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     y_train = keras.utils.to_categorical(y_train, 10)
@@ -290,6 +290,8 @@ class ANN():
         return np.sum(pred == (np.argmax(y,axis=1)+1) ) /len(y)
 
 if __name__ == "__main__":
+    
+    #example use case
     (x_train, y_train), (x_test, y_test) = get_data()
 
     parameters = {
