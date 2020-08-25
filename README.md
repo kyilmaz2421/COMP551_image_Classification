@@ -1,13 +1,38 @@
-# COMP551_image_Classification
-In, this project we compared the performance of a multilayer perceptron and a convolutional
-neural network on an image classification problem with
-the CIFAR-10 dataset. As requested we create a multilayer perceptron from scratch and use a tutorial to build
-the convolutional neural network. Lastly, we compare
-the train and test performance of the two models as a
-function of epochs. To further improve our multilayer
-perceptron we implemented a grid search for hyper
-parameter tuning as well as momentum and velocity. In
-the end the convolutional neural network out performs
-the multilayer perceptron by getting an 88.72% accuracy
-whereas the multilayer perceptron only gets a 39.4%
-accuracy
+# Introduction
+A Multi-layer Deep learning library with a highly configurable Neural Network built by hand
+
+# USAGE example
+
+    #can pull the cifar10 dataset by default to test library
+    (x_train, y_train), (x_test, y_test) = get_cifar10_data()
+
+    parameters = {
+        'alpha': [0.00001],
+        'regularization': [('L2',0.001)],
+        'activation': ["relu"],
+        'layers':[[1000,1000]],
+        'momentum': [0.9],
+        'batch': [500],
+    }
+
+    clf = classifier(parameters)
+    clf.search(x_train, y_train,0.1,6)
+    clf.evaluate_model(x_test, y_test) # on the tr
+    clf.learning_curve(x_train, y_train,0.1,[0.2,0.4,0.6,0.8,1.0])
+
+# how it works
+
+Composed of two classes 'Classifier' and 'ANN' (artificial Neural Network). 
+
+The ANN is the neural network class that has all the functionality to define a network with certain specifications and perform back propogation on a given datset.
+It accepts a normalized numpy matrix of training values X, a numpy vector of labels Y, a integer representing mini batch size, activation fucntion to use (i.e 'ReLu'), and an array where the length is the number of layers and the value at each index is the number of nodes in that layer
+
+The Classifier is a wrapper class that interacts with the ANN class to more effectivley classidy data and perform hyperparamter tuning. The Classifier class gives the access to grid search, model evaluation, learning curves to gauge performance.
+
+# improvments
+
+The key improvments required are as defined below: 
+- Implement dropout to mitigate overfitting 
+- Develop and incorporate batch normalization 
+- Maximize parrallel programming by using threads. Currently this library doesnt utilize multi-threading and would get a signifigant performance boost by being added.
+- Design more tools for easily importing and normalizing any dataset
