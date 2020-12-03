@@ -288,22 +288,3 @@ class ANN():
 
     def eval_acc(self,pred,y):
         return np.sum(pred == (np.argmax(y,axis=1)+1) ) /len(y)
-
-if __name__ == "__main__":
-    
-    #example use case
-    (x_train, y_train), (x_test, y_test) = get_cifar10_data()
-
-    parameters = {
-        'alpha': [0.00001],
-        'regularization': [('L2',0.001)],
-        'activation': ["relu"],
-        'layers':[[1000,1000]],
-        'momentum': [0.9],
-        'batch': [500],
-    }
-
-    clf = classifier(parameters)
-    clf.search(x_train, y_train,0.1,6)
-    #clf.evaluate_model(x_test, y_test) # on the tr
-    #clf.learning_curve(x_train, y_train,0.1,[0.2,0.4,0.6,0.8,1.0])
