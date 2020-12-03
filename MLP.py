@@ -18,8 +18,8 @@ def get_cifar10_data():
     y_train = to_categorical(y_train, 10)
     y_test = to_categorical(y_test, 10)
     
-    x_train = x_train.reshape(50000,3072)
-    x_test = x_test.reshape(10000,3072) 
+    x_train = x_train.reshape(50000, 3072)
+    x_test = x_test.reshape(10000, 3072) 
 
     print("Data retreived, normalized, and formatted succesfuly!\n")
     return (x_train/255, y_train), (x_test/255, y_test)
