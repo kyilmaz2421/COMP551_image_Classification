@@ -25,7 +25,7 @@ A Multi-layer Deep learning library with a highly configurable Neural Network bu
 Composed of two classes 'Classifier' and 'ANN' (artificial Neural Network). 
 
 The ANN is the neural network class that has all the functionality to define a network with certain specifications and perform back propogation on a given datset.
-It accepts a normalized numpy matrix of training values X, a numpy vector of labels Y, a integer representing mini batch size, activation fucntion to use (i.e 'ReLu'), and an array where the length is the number of layers and the value at each index is the number of nodes in that layer
+It accepts a numpy matrix of training values X, a numpy vector of labels Y, a integer representing mini batch size, activation fucntion to use (i.e 'ReLu'), and an array where the length is the number of layers and the value at each index is the number of nodes in that layer
 
 The Classifier is a wrapper class that interacts with the ANN class to more effectivley classidy data and perform hyperparamter tuning. The Classifier class gives the access to grid search, model evaluation, learning curves to gauge performance.
 
