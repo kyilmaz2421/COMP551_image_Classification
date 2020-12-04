@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/usr/local/bin/python3"
+    "python.pythonPath": "/usr/local/bin/python3",
+    "python.formatting.yapfArgs": ["--style", "{based_on_style: chromium, indent_width: 20}"]
 }

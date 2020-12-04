@@ -80,7 +80,7 @@ class classifier():
             for val in grid[keys[depth]]:
                 param[keys[depth]] = val
                 self.recurrence(X, Y, validation_size, param, grid,
-                                keys, depth+1, max_depth, clfs, task_count, tolerance)
+                                keys, (depth+1), max_depth, clfs, task_count, tolerance)
 
     def train_model(self, X, Y, validation_size,
                     params, evaluate, model = None):
