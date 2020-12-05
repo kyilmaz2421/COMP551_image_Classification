@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 
 
+
 # generic function to get cifar10 data to test Network
 def get_cifar10_data():
     from keras.utils import to_categorical
@@ -32,8 +33,9 @@ class classifier():
         self.clf = None
         self.best_param = None
 
+    
     def search(self, X, Y, validation_size=0.1, tolerance=-1):
-
+        
         t0 = time()
         fit_count = 1
         if tolerance == -1 and not (self.params.get('epochs')):
@@ -61,15 +63,12 @@ class classifier():
         print("RE-FITTING these params on the full dataset now")
 
         #Re-fitting process for future use
-        self.clf = ANN(X,
-                       Y,
-                       self.best_param["layers"],
-                       self.best_param["activation"],
-                       batch_size=self.best_param["batch"])
+        self.clf = ANN(X, Y, self.best_param["layers"], self.best_param["activation"], batch_size=self.best_param["batch"])
 
         self.clf.fit(self.best_param["alpha"], self.best_param["epochs"],
                      self.best_param["regularization"], self.best_param['momentum'])
 
+    
     def recurrence(self, X, Y, validation_size, param, grid, keys, depth, max_depth, clfs,
                    task_count, tolerance):
 
@@ -92,15 +91,13 @@ class classifier():
                 self.recurrence(X, Y, validation_size, param, grid, keys, (depth + 1), max_depth,
                                 clfs, task_count, tolerance)
 
+    
+    
     def train_model(self, X, Y, validation_size, params, evaluate, model=None):
         x_train, y_train, x_validate, y_validate = self.split_data(X, Y, validation_size)
 
         if model == None:
-            clf = ANN(x_train,
-                      y_train,
-                      params["layers"],
-                      params["activation"],
-                      batch_size=params["batch"])
+            clf = ANN(x_train, y_train, params["layers"], params["activation"], batch_size=params["batch"])
         else:
             clf = model
 
@@ -112,6 +109,7 @@ class classifier():
         return clf.eval_acc(clf.predict(x_validate),
                             y_validate), clf.eval_acc(clf.predict(x_train), y_train)
 
+
     def split_data(self, X, Y, validation_size):
         data = np.concatenate((X, Y), axis=1)
         np.random.shuffle(data)
@@ -121,23 +119,19 @@ class classifier():
 
         return train[:, 0:-10], train[:, -10:], validation[:, 0:-10], validation[:, -10:]
 
+    
     def iterative_search(self, X, Y, params, validation_size, tolerance):
 
         x_train, y_train, x_validate, y_validate = self.split_data(X, Y, validation_size)
 
-        clf = ANN(x_train,
-                  y_train,
-                  params["layers"],
-                  params["activation"],
-                  batch_size=params["batch"])
+        clf = ANN(x_train, y_train, params["layers"], params["activation"], batch_size=params["batch"])
 
         max_score, epochs, original_tolerance, batch_count = 0, 0, tolerance, clf.batch
         cv_score, train_score = [0], [0]
 
         improvement = True
         while improvement or tolerance > 0:  # while improving
-            print("EPOCH:", epochs, "--> training score", train_score[-1], "-- validation score",
-                  cv_score[-1])
+            print("EPOCH:", epochs,"--> training score",train_score[-1],"-- validation score",cv_score[-1])
 
             if not improvement:
                 tolerance -= 1
@@ -175,7 +169,8 @@ class classifier():
 
         return max_score, cv_score, train_score, epochs - original_tolerance
 
-    def evaluate_model(self, X_test, Y_test, clf=None):
+
+    def evaluate_model(self, X_test, Y_test, clf = None):
         print("Evaluation of model:\n")
         Y_test = (np.argmax(Y_test, axis=1) + 1)
         pred = self.clf.predict(X_test) if clf == None else clf.predict(X_test)
@@ -195,11 +190,8 @@ class classifier():
         sn.heatmap(df_cm)
         plt.show()
 
-    def plot_learning_curve(self,
-                            cv_scores,
-                            test_scores,
-                            train_sizes,
-                            xlabel="Training examples"):
+
+    def plot_learning_curve(self, cv_scores, test_scores, train_sizes, xlabel="Training examples"):
         plt.figure()
         plt.title("title")
         plt.xlabel(xlabel)
@@ -232,6 +224,7 @@ class classifier():
         plt.legend(loc="best")
         plt.show()
 
+
     def learning_curve(self, X, Y, validation_size, train_sizes):
 
         if train_sizes == []:
@@ -249,6 +242,8 @@ class classifier():
         cv_scores, test_scores = np.array([cv_scores]).T, np.array([test_scores]).T
 
         self.plot_learning_curve(cv_scores, test_scores, train_sizes)
+
+
 
 
 class ANN():
@@ -302,8 +297,8 @@ class ANN():
             print(f"EPOCH: {i}/{epochs}")
             np.random.shuffle(self.data)
             self.mini_batch(np.array_split(self.data[:, 0:-10], self.batch),
-                            np.array_split(self.data[:, -10:], self.batch), alpha,
-                            regularization, momentum)
+                            np.array_split(self.data[:, -10:], self.batch), alpha, regularization,
+                            momentum)
 
     def mini_batch(self, X, Y, alpha, regularization, momentum):
         counter, ten_percent = 0, floor(0.1 * self.batch)
@@ -313,12 +308,12 @@ class ANN():
             ]  # will be the same size as w eventually (the input units "have already been activated")
             self.fwd_prop(X[i], act_units)
             self.back_prop(X[i], Y[i], act_units, alpha, regularization, momentum)
-
+            
             if counter == ten_percent:
                 print(f"Progress: {i}/{self.batch} batches completed in this epoch")
-                counter = 0
+                counter = 0 
             else:
-                counter += 1
+                counter +=1
 
     def fwd_prop(self, batch, act_units):
         for l in range(1, self.L):
@@ -392,3 +387,5 @@ class ANN():
 
     def eval_acc(self, pred, y):
         return np.sum(pred == (np.argmax(y, axis=1) + 1)) / len(y)
+
+    
