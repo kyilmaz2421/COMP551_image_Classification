@@ -3,22 +3,23 @@ A Multi-layer Deep learning library with a highly configurable Neural Network bu
 
 # USAGE example
 
-    #can pull the cifar10 dataset by default to test library
+    # can pull the cifar10 dataset by default to test library
     (x_train, y_train), (x_test, y_test) = get_cifar10_data()
 
     parameters = {
         'alpha': [0.00001],
         'regularization': [('L2',0.001)],
         'activation': ["relu"],
-        'layers':[[1000,1000]],
+        'layers':[[100,10]],
         'momentum': [0.9],
-        'batch': [500],
+        'batch': [128],
+        'epcohs':[5]
+
     }
 
     clf = classifier(parameters)
-    clf.search(x_train, y_train,0.1,6)
-    clf.evaluate_model(x_test, y_test) # on the tr
-    clf.learning_curve(x_train, y_train,0.1,[0.2,0.4,0.6,0.8,1.0])
+    clf.search(x_train, y_train, validation_size = 0.1)
+    clf.evaluate_model(x_test, y_test)
 
 # how it works
 
