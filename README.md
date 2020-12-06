@@ -21,7 +21,7 @@ A Multi-layer Deep learning library with a highly configurable Neural Network bu
     clf.search(x_train, y_train, validation_size = 0.1)
     clf.evaluate_model(x_test, y_test)
 
-# how it works
+# How it works
 
 Composed of two classes 'Classifier' and 'ANN' (artificial Neural Network). 
 
@@ -30,7 +30,7 @@ It accepts a numpy matrix of training values X, a numpy vector of labels Y, a in
 
 The Classifier is a wrapper class that interacts with the ANN class to more effectivley classidy data and perform hyperparamter tuning. The Classifier class gives the access to grid search, model evaluation, learning curves to gauge performance.
 
-# improvments
+# Future improvments
 
 The key improvments required are as defined below: 
 - Implement dropout to mitigate overfitting 
